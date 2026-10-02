@@ -41,7 +41,8 @@ const baseFlags = {
   noWarnings: true,
   noPlaylist: true,
   noCheckCertificates: true,
-} as const
+  ...(process.env.PROXY ? { proxy: process.env.PROXY } : {}),
+}
 
 export async function getInfo(url: string): Promise<VideoInfo> {
   const info = (await youtubeDl(url, { ...baseFlags, dumpSingleJson: true })) as unknown as {
