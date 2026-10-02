@@ -10,13 +10,22 @@ const SKELETON_BAR_HEIGHTS = [
 interface WaveformProps {
   file: File
   onReady: (duration: number) => void
-  onRegionChange: (start: number, end: number) => void
+  onRegionChange?: (start: number, end: number) => void
   onError: () => void
   isPlaying: boolean
   onPlaybackEnd: () => void
+  withRegion?: boolean
 }
 
-export default function Waveform({ file, onReady, onRegionChange, onError, isPlaying, onPlaybackEnd }: WaveformProps) {
+export default function Waveform({
+  file,
+  onReady,
+  onRegionChange,
+  onError,
+  isPlaying,
+  onPlaybackEnd,
+  withRegion = true,
+}: WaveformProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const wavesurferRef = useRef<WaveSurfer | null>(null)
   const regionsRef = useRef<RegionsPlugin | null>(null)
@@ -48,21 +57,23 @@ export default function Waveform({ file, onReady, onRegionChange, onError, isPla
     wavesurferRef.current = ws
 
     ws.on('ready', (duration) => {
-      const region = regions.addRegion({
-        start: 0,
-        end: duration,
-        color: 'rgba(255, 90, 31, 0.15)',
-        drag: true,
-        resize: true,
-      })
-      regionRef.current = region
+      if (withRegion) {
+        const region = regions.addRegion({
+          start: 0,
+          end: duration,
+          color: 'rgba(255, 90, 31, 0.15)',
+          drag: true,
+          resize: true,
+        })
+        regionRef.current = region
+        onRegionChange?.(0, duration)
+      }
       setIsDecoding(false)
       onReady(duration)
-      onRegionChange(0, duration)
     })
 
     regions.on('region-updated', (region) => {
-      onRegionChange(region.start, region.end)
+      onRegionChange?.(region.start, region.end)
     })
 
     ws.on('finish', () => {

@@ -114,6 +114,11 @@ export const ACCEPTED_VIDEO_EXTENSIONS = [
 
 export const ACCEPTED_INPUT_EXTENSIONS = [...ACCEPTED_AUDIO_EXTENSIONS, ...ACCEPTED_VIDEO_EXTENSIONS]
 
+export function extOf(filename: string): string {
+  const parts = filename.split('.')
+  return parts.length > 1 ? parts.pop()!.toLowerCase() : ''
+}
+
 export function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) seconds = 0
   const m = Math.floor(seconds / 60)

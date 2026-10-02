@@ -6,7 +6,7 @@ interface ControlsPanelProps {
   onFormatChange: (id: FormatId) => void
   bitrate: string
   onBitrateChange: (bitrate: string) => void
-  isTrimmed: boolean
+  verb: string
   onConvert: () => void
   isBusy: boolean
   progress: number
@@ -18,7 +18,7 @@ export default function ControlsPanel({
   onFormatChange,
   bitrate,
   onBitrateChange,
-  isTrimmed,
+  verb,
   onConvert,
   isBusy,
   progress,
@@ -66,7 +66,7 @@ export default function ControlsPanel({
       <button
         onClick={onConvert}
         disabled={isBusy}
-        className="flex items-center justify-center gap-2 bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#ff5a1f] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-[#ff5a1f] dark:hover:text-white"
+        className="tactile flex items-center justify-center gap-2 bg-zinc-900 px-4 py-3 text-sm font-semibold text-white hover:bg-[#ff5a1f] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-[#ff5a1f] dark:hover:text-white"
       >
         {isBusy ? (
           <>
@@ -78,7 +78,7 @@ export default function ControlsPanel({
           </>
         ) : (
           <span>
-            {isTrimmed ? 'Trim & convert' : 'Convert'} to {format.label}
+            {verb} to {format.label}
           </span>
         )}
       </button>

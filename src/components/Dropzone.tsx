@@ -1,11 +1,13 @@
 import { useCallback, useRef } from 'react'
-import { ACCEPTED_INPUT_EXTENSIONS } from '../lib/formats'
 
 interface DropzoneProps {
   onFile: (file: File) => void
+  accept: string[]
+  hint: string
+  mediaKinds?: string[]
 }
 
-export default function Dropzone({ onFile }: DropzoneProps) {
+export default function Dropzone({ onFile, accept, hint, mediaKinds = [] }: DropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFiles = useCallback(
@@ -25,11 +27,11 @@ export default function Dropzone({ onFile }: DropzoneProps) {
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V4.5m0 0L7 9.5m5-5 5 5M4.5 19.5h15" />
       </svg>
       <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Drop a file, or click to browse</p>
-      <p className="font-mono text-xs text-zinc-400 dark:text-zinc-500">mp3 · wav · mp4 · mov — video converts to audio-only</p>
+      <p className="font-mono text-xs text-zinc-400 dark:text-zinc-500">{hint}</p>
       <input
         ref={inputRef}
         type="file"
-        accept={ACCEPTED_INPUT_EXTENSIONS.map((ext) => `.${ext}`).concat('audio/*', 'video/*').join(',')}
+        accept={accept.map((ext) => `.${ext}`).concat(mediaKinds).join(',')}
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}
       />

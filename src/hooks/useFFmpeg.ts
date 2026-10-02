@@ -32,6 +32,17 @@ export interface TranscodeOptions {
   onProgress?: (ratio: number) => void
 }
 
+export interface ClipOptions {
+  file: File
+  trimStart: number
+  trimEnd: number
+  onProgress?: (ratio: number) => void
+}
+
+function fileExt(name: string): string {
+  return name.split('.').pop() || 'bin'
+}
+
 export function useFFmpeg() {
   const [isLoading, setIsLoading] = useState(false)
   const [isReady, setIsReady] = useState(() => ffmpegSingleton?.loaded ?? false)
@@ -64,7 +75,7 @@ export function useFFmpeg() {
     }
     ffmpeg.on('progress', progressHandler)
 
-    const inputName = `input_${Date.now()}.${file.name.split('.').pop() || 'bin'}`
+    const inputName = `input_${Date.now()}.${fileExt(file.name)}`
     const outputName = `output_${Date.now()}.${format.ext}`
 
     try {
@@ -103,5 +114,48 @@ export function useFFmpeg() {
     }
   }, [ensureLoaded])
 
-  return { transcode, ensureLoaded, isLoading, isReady, error }
+  const clip = useCallback(async (opts: ClipOptions): Promise<Blob> => {
+    const { file, trimStart, trimEnd, onProgress } = opts
+    setError(null)
+    const ffmpeg = await ensureLoaded()
+
+    progressCb.current = onProgress ?? null
+    const progressHandler = ({ progress }: { progress: number }) => {
+      if (progressCb.current) progressCb.current(Math.min(Math.max(progress, 0), 1))
+    }
+    ffmpeg.on('progress', progressHandler)
+
+    const ext = fileExt(file.name)
+    const inputName = `input_${Date.now()}.${ext}`
+    const outputName = `output_${Date.now()}.${ext}`
+
+    try {
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+
+      const args: string[] = []
+      if (trimStart > 0) args.push('-ss', trimStart.toFixed(3))
+      args.push('-i', inputName)
+      if (trimEnd > trimStart) args.push('-t', (trimEnd - trimStart).toFixed(3))
+      args.push('-c', 'copy', outputName)
+
+      await ffmpeg.exec(args)
+      const data = await ffmpeg.readFile(outputName)
+      const bytes = data as Uint8Array
+      return new Blob([bytes.slice()], { type: file.type || 'application/octet-stream' })
+    } finally {
+      ffmpeg.off('progress', progressHandler)
+      try {
+        await ffmpeg.deleteFile(inputName)
+      } catch {
+        /* ignore */
+      }
+      try {
+        await ffmpeg.deleteFile(outputName)
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [ensureLoaded])
+
+  return { transcode, clip, ensureLoaded, isLoading, isReady, error }
 }
