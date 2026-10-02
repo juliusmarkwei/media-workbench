@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "description": "Standalone microservice that fetches YouTube video/audio via yt-dlp for the Media Workbench frontend.",
+  "packageManager": "pnpm@10.18.0",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts"
