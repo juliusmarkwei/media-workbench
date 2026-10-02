@@ -1,7 +1,18 @@
+import { writeFileSync } from 'node:fs'
 import { mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import youtubeDl from 'youtube-dl-exec'
+
+function resolveCookiesFile(): string | undefined {
+  const b64 = process.env.YT_COOKIES_B64
+  if (!b64) return undefined
+  const path = join(tmpdir(), 'yt-cookies.txt')
+  writeFileSync(path, Buffer.from(b64, 'base64'))
+  return path
+}
+
+const cookiesFile = resolveCookiesFile()
 
 export interface VideoFormat {
   height: number
@@ -42,6 +53,7 @@ const baseFlags = {
   noPlaylist: true,
   noCheckCertificates: true,
   ...(process.env.PROXY ? { proxy: process.env.PROXY } : {}),
+  ...(cookiesFile ? { cookies: cookiesFile } : {}),
 }
 
 export async function getInfo(url: string): Promise<VideoInfo> {
