@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react'
 import { FORMATS, type FormatId } from '../lib/formats'
 import {
-  audioDownloadUrl,
   estimateAudioBytes,
   formatBytes,
   heightLabel,
-  videoDownloadUrl,
+  prepareDownload,
   type VideoInfo,
 } from '../lib/youtube'
 import SegmentedTabs from './SegmentedTabs'
@@ -19,13 +18,9 @@ interface YouTubeOptionsProps {
 type Mode = 'video' | 'videoonly' | 'audio'
 
 function triggerDownload(href: string) {
-  // A hidden iframe downloads attachments without navigating away; an error
-  // response (JSON, no Content-Disposition) loads harmlessly inside it.
-  const frame = document.createElement('iframe')
-  frame.style.display = 'none'
-  frame.src = href
-  document.body.appendChild(frame)
-  setTimeout(() => frame.remove(), 60000)
+  const a = document.createElement('a')
+  a.href = href
+  a.click()
 }
 
 export default function YouTubeOptions({ url, info }: YouTubeOptionsProps) {
@@ -35,6 +30,7 @@ export default function YouTubeOptions({ url, info }: YouTubeOptionsProps) {
   const [formatId, setFormatId] = useState<FormatId>('mp3')
   const [bitrate, setBitrate] = useState('192k')
   const [preparing, setPreparing] = useState(false)
+  const [error, setError] = useState('')
 
   const format = useMemo(() => FORMATS.find((f) => f.id === formatId)!, [formatId])
   const isVideo = mode === 'video' || mode === 'videoonly'
@@ -54,14 +50,22 @@ export default function YouTubeOptions({ url, info }: YouTubeOptionsProps) {
     if (recommended) setBitrate(recommended.value)
   }
 
-  const handleDownload = () => {
-    const href =
-      mode === 'audio'
-        ? audioDownloadUrl(url, formatId, format.qualities ? bitrate : undefined)
-        : videoDownloadUrl(url, Number(height), mode === 'video')
-    triggerDownload(href)
+  const handleDownload = async () => {
     setPreparing(true)
-    setTimeout(() => setPreparing(false), 4000)
+    setError('')
+    try {
+      const href = await prepareDownload(
+        url,
+        mode === 'audio'
+          ? { type: 'audio', format: formatId, quality: format.qualities ? bitrate : undefined }
+          : { type: mode, height: Number(height) },
+      )
+      triggerDownload(href)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Download failed')
+    } finally {
+      setPreparing(false)
+    }
   }
 
   const videoOptions = info.videoFormats.map((f) => ({
@@ -146,17 +150,18 @@ export default function YouTubeOptions({ url, info }: YouTubeOptionsProps) {
 
       <button
         onClick={handleDownload}
-        disabled={isVideo && !hasVideo}
+        disabled={preparing || (isVideo && !hasVideo)}
         className="tactile bg-zinc-900 px-4 py-3 text-sm font-semibold text-white hover:bg-[#ff5a1f] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-[#ff5a1f] dark:hover:text-white"
       >
         {preparing
-          ? 'Preparing on server — download will start…'
+          ? 'Preparing on server — this can take a minute or two…'
           : mode === 'audio'
             ? `Download ${format.label} audio`
             : mode === 'videoonly'
               ? `Download ${height}p video (no audio)`
               : `Download ${height}p video`}
       </button>
+      {error && <p className="text-center text-sm text-red-500">{error}</p>}
     </div>
   )
 }

@@ -35,8 +35,11 @@ Env vars: `PORT` (default `8787`), `CORS_ORIGIN` (default: allow all).
 
 - `GET /api/info?url=<video-url>` → `{ title, duration, thumbnail, uploader, webpageUrl, videoFormats }`,
   where each `videoFormats` entry is `{ height, size, videoOnlySize }` (sizes in bytes, estimated)
-- `GET /api/download?url=<video-url>&type=video&height=<px>` → merged mp4 stream (video + audio)
-- `GET /api/download?url=<video-url>&type=videoonly&height=<px>` → video-only stream, no audio
-- `GET /api/download?url=<video-url>&type=audio&format=<mp3|m4a|wav|ogg|opus|flac>&quality=<e.g. 192k>` → audio stream
+- `GET /api/prepare?url=<video-url>&type=video&height=<px>` → merged mp4 (video + audio)
+- `GET /api/prepare?url=<video-url>&type=videoonly&height=<px>` → video-only, no audio
+- `GET /api/prepare?url=<video-url>&type=audio&format=<mp3|m4a|wav|ogg|opus|flac>&quality=<e.g. 192k>` → audio
+- `GET /api/file/<id>` → streams the prepared file once (attachment); unclaimed files expire after 10 min
+
+`/api/prepare` responds `{ id }` only once yt-dlp has finished, so clients can show progress and surface errors.
 
 `quality` is ignored for lossless formats (wav, flac).

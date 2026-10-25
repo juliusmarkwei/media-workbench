@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import cors from 'cors'
 import express, { type Request, type Response } from 'express'
@@ -43,36 +44,53 @@ app.get('/api/info', async (req: Request, res: Response) => {
   }
 })
 
-app.get('/api/download', async (req: Request, res: Response) => {
-  let result: DownloadResult | undefined
+const PREPARED_TTL_MS = 10 * 60 * 1000
+const prepared = new Map<string, DownloadResult>()
+
+function prepareDownload(req: Request): Promise<DownloadResult> {
+  const url = parseUrl(req.query.url)
+  const type = req.query.type
+
+  if (type === 'video' || type === 'videoonly') {
+    const height = Number(req.query.height)
+    if (!Number.isInteger(height) || height <= 0) throw new HttpError(400, 'invalid height')
+    return type === 'video' ? downloadVideo(url, height) : downloadVideoOnly(url, height)
+  }
+  if (type === 'audio') {
+    const format = String(req.query.format ?? '')
+    if (!AUDIO_FORMAT_IDS.includes(format)) throw new HttpError(400, 'invalid audio format')
+    const quality = req.query.quality ? String(req.query.quality) : undefined
+    if (quality && !/^\d{1,4}[kK]$/.test(quality)) throw new HttpError(400, 'invalid quality')
+    return downloadAudio(url, format, quality)
+  }
+  throw new HttpError(400, 'type must be "video", "videoonly" or "audio"')
+}
+
+app.get('/api/prepare', async (req: Request, res: Response) => {
   try {
-    const url = parseUrl(req.query.url)
-    const type = req.query.type
-
-    if (type === 'video' || type === 'videoonly') {
-      const height = Number(req.query.height)
-      if (!Number.isInteger(height) || height <= 0) throw new HttpError(400, 'invalid height')
-      result = await (type === 'video' ? downloadVideo(url, height) : downloadVideoOnly(url, height))
-    } else if (type === 'audio') {
-      const format = String(req.query.format ?? '')
-      if (!AUDIO_FORMAT_IDS.includes(format)) throw new HttpError(400, 'invalid audio format')
-      const quality = req.query.quality ? String(req.query.quality) : undefined
-      if (quality && !/^\d{1,4}[kK]$/.test(quality)) throw new HttpError(400, 'invalid quality')
-      result = await downloadAudio(url, format, quality)
-    } else {
-      throw new HttpError(400, 'type must be "video", "videoonly" or "audio"')
-    }
-
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(result.name)}"`)
-    const stream = createReadStream(result.file)
-    const done = result.cleanup
-    stream.on('close', () => void done())
-    stream.on('error', () => void done())
-    stream.pipe(res)
+    const result = await prepareDownload(req)
+    const id = randomUUID()
+    prepared.set(id, result)
+    setTimeout(() => {
+      if (prepared.delete(id)) void result.cleanup()
+    }, PREPARED_TTL_MS).unref()
+    res.json({ id })
   } catch (err) {
-    await result?.cleanup()
     sendError(res, err)
   }
+})
+
+app.get('/api/file/:id', (req: Request, res: Response) => {
+  const id = String(req.params.id)
+  const result = prepared.get(id)
+  if (!result) return sendError(res, new HttpError(404, 'download expired or not found'))
+  prepared.delete(id)
+
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(result.name)}"`)
+  const stream = createReadStream(result.file)
+  stream.on('close', () => void result.cleanup())
+  stream.on('error', () => void result.cleanup())
+  stream.pipe(res)
 })
 
 function sendError(res: Response, err: unknown) {

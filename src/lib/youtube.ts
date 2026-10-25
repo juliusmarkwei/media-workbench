@@ -24,14 +24,23 @@ export async function fetchInfo(url: string): Promise<VideoInfo> {
   return res.json()
 }
 
-export function videoDownloadUrl(url: string, height: number, audio = true): string {
-  const type = audio ? 'video' : 'videoonly'
-  return `${API_BASE}/api/download?type=${type}&url=${encodeURIComponent(url)}&height=${height}`
-}
+export type DownloadRequest =
+  | { type: 'video' | 'videoonly'; height: number }
+  | { type: 'audio'; format: string; quality?: string }
 
-export function audioDownloadUrl(url: string, format: string, quality?: string): string {
-  const q = quality ? `&quality=${encodeURIComponent(quality)}` : ''
-  return `${API_BASE}/api/download?type=audio&url=${encodeURIComponent(url)}&format=${format}${q}`
+/** waits until the server has the file ready, then returns its download URL */
+export async function prepareDownload(url: string, req: DownloadRequest): Promise<string> {
+  const params = new URLSearchParams({ url, type: req.type })
+  if (req.type === 'audio') {
+    params.set('format', req.format)
+    if (req.quality) params.set('quality', req.quality)
+  } else {
+    params.set('height', String(req.height))
+  }
+  const res = await fetch(`${API_BASE}/api/prepare?${params}`)
+  const body = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(body?.error ?? `Request failed (${res.status})`)
+  return `${API_BASE}/api/file/${body.id}`
 }
 
 export function heightLabel(height: number): string {
