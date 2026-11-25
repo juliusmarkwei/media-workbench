@@ -52,6 +52,7 @@ const baseFlags = {
   noWarnings: true,
   noPlaylist: true,
   noCheckCertificates: true,
+  jsRuntimes: 'node' as const,
   ...(process.env.PROXY ? { proxy: process.env.PROXY } : {}),
   ...(cookiesFile ? { cookies: cookiesFile } : {}),
 }

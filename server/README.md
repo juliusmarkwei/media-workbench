@@ -29,7 +29,21 @@ pnpm dev        # http://localhost:8787, auto-reload
 # or: pnpm start
 ```
 
-Env vars: `PORT` (default `8787`), `CORS_ORIGIN` (default: allow all).
+Env vars: `PORT` (default `8787`), `CORS_ORIGIN` (default: allow all),
+`PROXY` (yt-dlp `--proxy`), `YT_COOKIES_B64` (base64 Netscape cookies.txt).
+
+## Bot checks ("Sign in to confirm you're not a bot")
+
+The Docker image counters YouTube's bot detection by:
+
+- installing yt-dlp from PyPI and upgrading it on every container start
+- running the [bgutil PO-token provider](https://github.com/Brainicism/bgutil-ytdlp-pot-provider) on `127.0.0.1:4416` (yt-dlp picks it up automatically)
+- using Node as yt-dlp's JS runtime for YouTube's signature challenges
+
+YouTube still blocks some datacenter IPs even when requests include a valid PO
+token. If the error comes back after a redeploy, set `PROXY` to a residential
+proxy (most reliable), or set `YT_COOKIES_B64` to the cookies of a throwaway
+account exported from a private window.
 
 ## API
 
